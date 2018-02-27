@@ -17,4 +17,26 @@
 */
 BOOL DeviceFPGA_Open(_Inout_ PPCILEECH_CONTEXT ctx);
 
+#if defined(LINUX)
+
+#include <stdio.h>
+#include <stdint.h>
+#include <pthread.h>
+
+// HMODULE isn't necessary because we're not dynamically loading the library
+#define HMODULE void*
+
+#define _byteswap_uint64 __builtin_bswap64
+
+/* BOOL and WCHAR are defined in ftd3xx and in oscompatibility
+ * so we do some redefining to avoid compilation problems
+ */
+#define BOOL BOOL_I_DONT_CARE_ABOUT
+#define WCHAR WCHAR_I_DONT_CARE_ABOUT
+#include <ftd3xx.h>
+#undef WCHAR
+#undef BOOL
+
+#endif /*  LINUX  */
+
 #endif /* __DEVICEFPGA_H__ */

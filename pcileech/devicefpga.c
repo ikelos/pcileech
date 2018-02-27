@@ -6,7 +6,7 @@
 // (c) Ulf Frisk, 2017-2018
 // Author: Ulf Frisk, pcileech@frizk.net
 //
-#ifdef WIN32
+#if defined(WIN32) || defined(LINUX)
 
 #include "devicefpga.h"
 #include "device.h"
@@ -171,6 +171,8 @@ typedef struct tdDEVICE_CONTEXT_FPGA {
     BOOL(*hRxTlpCallbackFn)(_Inout_ PTLP_CALLBACK_BUF_MRd pBufferMrd, _In_ PBYTE pb, _In_ DWORD cb, _In_opt_ HANDLE hEventCompleted);
 } DEVICE_CONTEXT_FPGA, *PDEVICE_CONTEXT_FPGA;
 
+#ifdef WIN32
+
 // STRUCT FROM FTD3XX.h
 typedef struct {
     USHORT       VendorID;
@@ -190,6 +192,8 @@ typedef struct {
     ULONG        GPIO_Control;
 } FT_60XCONFIGURATION, *PFT_60XCONFIGURATION;
 
+#endif /*  WIN32  */
+
 //-------------------------------------------------------------------------------
 // FPGA implementation below:
 //-------------------------------------------------------------------------------
@@ -203,6 +207,7 @@ LPSTR DeviceFPGA_InitializeFTDI(_In_ PDEVICE_CONTEXT_FPGA ctx)
     ULONG(*pfnFT_SetChipConfiguration)(HANDLE ftHandle, PVOID pvConfiguration);
     FT_60XCONFIGURATION oCfgNew, oCfgOld;
     // Load FTDI Library
+#ifdef WIN32
     ctx->dev.hModule = LoadLibrary(L"FTD3XX.dll");
     if(!ctx->dev.hModule) { 
         szErrorReason = "Unable to load FTD3XX.dll";
@@ -220,6 +225,15 @@ LPSTR DeviceFPGA_InitializeFTDI(_In_ PDEVICE_CONTEXT_FPGA ctx)
         GetProcAddress(ctx->dev.hModule, "FT_WritePipe");
     pfnFT_GetChipConfiguration = (ULONG(*)(HANDLE, PVOID))GetProcAddress(ctx->dev.hModule, "FT_GetChipConfiguration");
     pfnFT_SetChipConfiguration = (ULONG(*)(HANDLE, PVOID))GetProcAddress(ctx->dev.hModule, "FT_SetChipConfiguration");
+#else  /*  WIN32  */
+    ctx->dev.pfnFT_AbortPipe = FT_AbortPipe;
+    ctx->dev.pfnFT_Create = FT_Create;
+    ctx->dev.pfnFT_Close = FT_Close;
+    ctx->dev.pfnFT_ReadPipe = FT_ReadPipe;
+    ctx->dev.pfnFT_WritePipe = FT_WritePipe;
+    pfnFT_GetChipConfiguration = FT_GetChipConfiguration;
+    pfnFT_SetChipConfiguration = FT_SetChipConfiguration;
+#endif /*  WIN32  */
     if(!ctx->dev.pfnFT_Create) {
         szErrorReason = "Unable to retrieve required functions from FTD3XX.dll";
         goto fail; 
@@ -264,7 +278,9 @@ LPSTR DeviceFPGA_InitializeFTDI(_In_ PDEVICE_CONTEXT_FPGA ctx)
         }
         printf("FTDI USB CONFIGURATION UPDATED - RESETTING AND CONTINUING ...\n");
         ctx->dev.pfnFT_Close(ctx->dev.hFTDI);
+#ifdef WIN32
         FreeLibrary(ctx->dev.hModule);
+#endif /*  WIN32  */
         ctx->dev.hModule = NULL;
         ctx->dev.hFTDI = NULL;
         Sleep(3000);
@@ -273,7 +289,9 @@ LPSTR DeviceFPGA_InitializeFTDI(_In_ PDEVICE_CONTEXT_FPGA ctx)
     return NULL;
 fail:
     if(ctx->dev.hFTDI && ctx->dev.pfnFT_Close) { ctx->dev.pfnFT_Close(ctx->dev.hFTDI); }
+#ifdef WIN32
     if(ctx->dev.hModule) { FreeLibrary(ctx->dev.hModule); }
+#endif /*  WIN32  */
     ctx->dev.hModule = NULL;
     ctx->dev.hFTDI = NULL;
     return szErrorReason;
@@ -293,7 +311,9 @@ VOID DeviceFPGA_Close(_Inout_ PPCILEECH_CONTEXT ctxPcileech)
     PDEVICE_CONTEXT_FPGA ctx = (PDEVICE_CONTEXT_FPGA)ctxPcileech->hDevice;
     if(!ctx) { return; }
     if(ctx->dev.hFTDI) { ctx->dev.pfnFT_Close(ctx->dev.hFTDI); }
+#ifdef WIN32
     if(ctx->dev.hModule) { FreeLibrary(ctx->dev.hModule); }
+#endif /*  WIN32  */
     if(ctx->rxbuf.pb) { LocalFree(ctx->rxbuf.pb); }
     if(ctx->txbuf.pb) { LocalFree(ctx->txbuf.pb); }
     LocalFree(ctx);
@@ -819,8 +839,8 @@ fail:
     return FALSE;
 }
 
-#endif /* WIN32 */
-#if defined(LINUX) || defined(ANDROID)
+#endif /* WIN32 || LINUX */
+#if defined(ANDROID)
 
 #include "devicefpga.h"
 
@@ -832,4 +852,4 @@ BOOL DeviceFPGA_Open(_Inout_ PPCILEECH_CONTEXT ctx)
     return FALSE;
 }
 
-#endif /* LINUX || ANDROID */
+#endif /* ANDROID */
