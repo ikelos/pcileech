@@ -1,0 +1,4 @@
+*.o
+
+# Ignore the compiled binary
+pcileech/pcileech
