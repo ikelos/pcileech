@@ -349,7 +349,7 @@ BOOL DeviceFPGA_GetSetPHY(_In_ PDEVICE_CONTEXT_FPGA ctx, _In_ BOOL isUpdate)
     for(i = 0; i < cbRxTx; i += 32) {
         while(*(PDWORD)(pbRx + i) == 0x55556666) { // skip over ftdi workaround dummy fillers
             i += 4;
-            if(i > cbRxTx - 32) { return FALSE; }
+            if(i + 32 > cbRxTx) { return FALSE; }
         }
         dwStatus = *(PDWORD)(pbRx + i);
         pdwData = (PDWORD)(pbRx + i + 4);
@@ -410,7 +410,7 @@ VOID DeviceFPGA_GetDeviceID_FpgaVersion(_In_ PDEVICE_CONTEXT_FPGA ctx)
     for(i = 0; i < cbRX; i += 32) {
         while(*(PDWORD)(pbRX + i) == 0x55556666) { // skip over ftdi workaround dummy fillers
             i += 4;
-            if(i > cbRX - 32) { goto fail; }
+            if(i + 32 > cbRX) { goto fail; }
         }
         dwStatus = *(PDWORD)(pbRX + i);
         pdwData = (PDWORD)(pbRX + i + 4);
@@ -522,7 +522,7 @@ VOID DeviceFPGA_RxTlpSynchronous(_In_ PDEVICE_CONTEXT_FPGA ctx)
     for(i = 0; i < ctx->rxbuf.cb; i += 32) { // index in 64-bit (QWORD)
         while(*(PDWORD)(ctx->rxbuf.pb + i) == 0x55556666) { // skip over ftdi workaround dummy fillers
             i += 4;
-            if(i > ctx->rxbuf.cb - 32) { return; }
+            if(i + 32 > ctx->rxbuf.cb) { return; }
         }
         dwStatus = *(PDWORD)(ctx->rxbuf.pb + i);
         pdwData = (PDWORD)(ctx->rxbuf.pb + i + 4);
