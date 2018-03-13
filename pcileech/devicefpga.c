@@ -520,6 +520,9 @@ VOID DeviceFPGA_RxTlpSynchronous(_In_ PDEVICE_CONTEXT_FPGA ctx)
         return;
     }
     for(i = 0; i < ctx->rxbuf.cb; i += 32) { // index in 64-bit (QWORD)
+        if (*(PDWORD)(ctx->rxbuf.pb + i) == 0x66665555) {
+            i += 2;
+        }
         while(*(PDWORD)(ctx->rxbuf.pb + i) == 0x55556666) { // skip over ftdi workaround dummy fillers
             i += 4;
             if(i + 32 > ctx->rxbuf.cb) { return; }
