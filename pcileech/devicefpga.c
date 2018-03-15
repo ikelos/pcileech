@@ -548,9 +548,14 @@ VOID DeviceFPGA_RxTlpSynchronous(_In_ PDEVICE_CONTEXT_FPGA ctx)
             // We're most likely a split USB packet, tack the remainder at the start of the buffer and shrink it's size
             memcpy(ctx->rxbuf.pb, ctx->rxbuf.pb + i, ctx->rxbuf.cb - i);
             ctx->rxbuf.cbExcess = ctx->rxbuf.cb - i;
-            ctx->rxbuf.pb += ctx->rxbuf.cbExcess;
-            ctx->rxbuf.cbMax -= ctx->rxbuf.cbExcess;
-            DeviceFPGA_RxTlpSynchronous(ctx);
+            if(ctx->rxbuf.cbMax > ctx->rxbuf.cbExcess) {
+                // Make sure rxbuf.pb next goes past the far end of the real buffer size (or that cbMax becomes negative)
+                ctx->rxbuf.pb += ctx->rxbuf.cbExcess;
+                ctx->rxbuf.cbMax -= ctx->rxbuf.cbExcess;
+                DeviceFPGA_RxTlpSynchronous(ctx);
+            } else {
+                ctx->rxbuf.cbExcess = 0;
+            }
             return;
 	}
         if (*(PDWORD)(ctx->rxbuf.pb + i) == 0x66665555) {
