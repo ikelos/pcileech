@@ -131,6 +131,7 @@ typedef struct tdDEVICE_CONTEXT_FPGA {
         PBYTE pb;
         DWORD cb;
         DWORD cbMax;
+        DWORD cbExcess;
     } rxbuf;
     struct {
         PBYTE pb;
@@ -521,7 +522,19 @@ VOID DeviceFPGA_RxTlpSynchronous(_In_ PDEVICE_CONTEXT_FPGA ctx)
     PDWORD pdwTlp = (PDWORD)pbTlp;
     PDWORD pdwRx = (PDWORD)ctx->rxbuf.pb;
     DWORD dwStatus, *pdwData;
-    status = ctx->dev.pfnFT_ReadPipe(ctx->dev.hFTDI, 0x82, ctx->rxbuf.pb, ctx->rxbuf.cbMax, &ctx->rxbuf.cb, NULL);
+    status = ctx->dev.pfnFT_ReadPipe(ctx->dev.hFTDI, 0x82, ctx->rxbuf.pb, ctx->rxbuf.cbMax, &ctx->rxbuf.cb, NULL);	
+    if(ctx->rxbuf.cbExcess > 0) {
+	    if(ctx->rxbuf.cbExcess > 32) {
+		printf("Something went very wrong with this read, aborting.");
+		return;
+	    }
+            // Re-expand the buffer if it was shrunk and we're a split USB packet
+            // Since we know we're split, we know we won't start with padding
+            ctx->rxbuf.cb += ctx->rxbuf.cbExcess;
+            ctx->rxbuf.pb -= ctx->rxbuf.cbExcess;
+            ctx->rxbuf.cbMax += ctx->rxbuf.cbExcess;
+            ctx->rxbuf.cbExcess = 0;
+    }
     if(status == 0x20 && ctx->perf.RETRY_ON_ERROR) {
         DeviceFPGA_ReInitializeFTDI(ctx); // try recovery if possible.
         status = ctx->dev.pfnFT_ReadPipe(ctx->dev.hFTDI, 0x82, ctx->rxbuf.pb, ctx->rxbuf.cbMax, &ctx->rxbuf.cb, NULL);
@@ -531,6 +544,15 @@ VOID DeviceFPGA_RxTlpSynchronous(_In_ PDEVICE_CONTEXT_FPGA ctx)
         return;
     }
     for(i = 0; i < ctx->rxbuf.cb; i += 32) { // index in 64-bit (QWORD)
+        if (i + 32 > ctx->rxbuf.cb) {
+            // We're most likely a split USB packet, tack the remainder at the start of the buffer and shrink it's size
+            memcpy(ctx->rxbuf.pb, ctx->rxbuf.pb + i, ctx->rxbuf.cb - i);
+            ctx->rxbuf.cbExcess = ctx->rxbuf.cb - i;
+            ctx->rxbuf.pb += ctx->rxbuf.cbExcess;
+            ctx->rxbuf.cbMax -= ctx->rxbuf.cbExcess;
+            DeviceFPGA_RxTlpSynchronous(ctx);
+            return;
+	}
         if (*(PDWORD)(ctx->rxbuf.pb + i) == 0x66665555) {
             i += 2;
         }
@@ -857,6 +879,7 @@ BOOL DeviceFPGA_Open(_Inout_ PPCILEECH_CONTEXT ctxPcileech)
     DeviceFPGA_SetPerformanceProfile(ctxPcileech, ctx);
     ctx->rxbuf.cbMax = (DWORD)(1.30 * ctx->perf.MAX_SIZE_RX + 0x1000);  // buffer size tuned to lowest possible (+margin) for performance.
     ctx->rxbuf.pb = LocalAlloc(0, ctx->rxbuf.cbMax);
+    ctx->rxbuf.cbExcess = 0;
     if(!ctx->rxbuf.pb) { goto fail; }
     ctx->txbuf.cbMax = ctx->perf.MAX_SIZE_TX + 0x10000;
     ctx->txbuf.pb = LocalAlloc(0, ctx->txbuf.cbMax);
