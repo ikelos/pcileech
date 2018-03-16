@@ -67,11 +67,11 @@ DWORD DeviceReadDMAEx_DoWork_Scatter(_Inout_ PPCILEECH_CONTEXT ctx, _In_ QWORD q
     }
     DeviceReadScatterDMA(ctx, ppDMAs, cDMAs, &cDMAsRead);
     for(i = 0; i < cDMAs; i++) {
-        if(pDMAs[i].cb == 0x1000) {
-            PageStatUpdate(pPageStat, pDMAs[i].qwA + 0x1000, 1, 0);
+        if(pDMAs[i].cb >= 0x1000) {
+            PageStatUpdate(pPageStat, pDMAs[i].qwA + pDMAs[i].cb, 1, 0);
         } else {
-            PageStatUpdate(pPageStat, pDMAs[i].qwA + 0x1000, 0, 1);
-            ZeroMemory(pDMAs[i].pb, 0x1000);
+            PageStatUpdate(pPageStat, pDMAs[i].qwA + pDMAs[i].cb, 0, 1);
+            ZeroMemory(pDMAs[i].pb, pDMAs[i].cb);
         }
     }
     LocalFree(pbBuffer);
