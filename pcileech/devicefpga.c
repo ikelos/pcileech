@@ -296,9 +296,13 @@ LPSTR DeviceFPGA_InitializeFTDI(_In_ PDEVICE_CONTEXT_FPGA ctx)
     return NULL;
 fail:
     if(ctx->dev.hFTDI && ctx->dev.pfnFT_Close) { ctx->dev.pfnFT_Close(ctx->dev.hFTDI); }
+    if(ctx->dev.hModule) {
 #ifdef WIN32
-    if(ctx->dev.hModule) { FreeLibrary(ctx->dev.hModule); }
+        FreeLibrary(ctx->dev.hModule);
+#else
+        dlclose(ctx->dev.hModule);
 #endif /*  WIN32  */
+    }
     ctx->dev.hModule = NULL;
     ctx->dev.hFTDI = NULL;
     return szErrorReason;
@@ -318,9 +322,13 @@ VOID DeviceFPGA_Close(_Inout_ PPCILEECH_CONTEXT ctxPcileech)
     PDEVICE_CONTEXT_FPGA ctx = (PDEVICE_CONTEXT_FPGA)ctxPcileech->hDevice;
     if(!ctx) { return; }
     if(ctx->dev.hFTDI) { ctx->dev.pfnFT_Close(ctx->dev.hFTDI); }
+    if(ctx->dev.hModule) {
 #ifdef WIN32
-    if(ctx->dev.hModule) { FreeLibrary(ctx->dev.hModule); }
+        FreeLibrary(ctx->dev.hModule);
+#else
+        dlclose(ctx->dev.hModule);
 #endif /*  WIN32  */
+    }
     if(ctx->rxbuf.pb) { LocalFree(ctx->rxbuf.pb); }
     if(ctx->txbuf.pb) { LocalFree(ctx->txbuf.pb); }
     LocalFree(ctx);
