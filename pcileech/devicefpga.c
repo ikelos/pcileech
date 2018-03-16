@@ -230,13 +230,14 @@ LPSTR DeviceFPGA_InitializeFTDI(_In_ PDEVICE_CONTEXT_FPGA ctx)
     pfnFT_GetChipConfiguration = (ULONG(*)(HANDLE, PVOID))GetProcAddress(ctx->dev.hModule, "FT_GetChipConfiguration");
     pfnFT_SetChipConfiguration = (ULONG(*)(HANDLE, PVOID))GetProcAddress(ctx->dev.hModule, "FT_SetChipConfiguration");
 #else  /*  WIN32  */
-    ctx->dev.pfnFT_AbortPipe = FT_AbortPipe;
-    ctx->dev.pfnFT_Create = FT_Create;
-    ctx->dev.pfnFT_Close = FT_Close;
-    ctx->dev.pfnFT_ReadPipe = FT_ReadPipe;
-    ctx->dev.pfnFT_WritePipe = FT_WritePipe;
-    pfnFT_GetChipConfiguration = FT_GetChipConfiguration;
-    pfnFT_SetChipConfiguration = FT_SetChipConfiguration;
+    ctx->dev.hModule = dlopen("libftd3xx.so", RTLD_LAZY);
+    ctx->dev.pfnFT_AbortPipe = dlsym(ctx->dev.hModule, "FT_AbortPipe");
+    ctx->dev.pfnFT_Create = dlsym(ctx->dev.hModule, "FT_Create");
+    ctx->dev.pfnFT_Close = dlsym(ctx->dev.hModule, "FT_Close");
+    ctx->dev.pfnFT_ReadPipe = dlsym(ctx->dev.hModule, "FT_ReadPipe");
+    ctx->dev.pfnFT_WritePipe = dlsym(ctx->dev.hModule, "FT_WritePipe");
+    pfnFT_GetChipConfiguration = dlsym(ctx->dev.hModule, "FT_GetChipConfiguration");
+    pfnFT_SetChipConfiguration = dlsym(ctx->dev.hModule, "FT_SetChipConfiguration");
 #endif /*  WIN32  */
     if(!ctx->dev.pfnFT_Create) {
         szErrorReason = "Unable to retrieve required functions from FTD3XX.dll";
@@ -284,6 +285,8 @@ LPSTR DeviceFPGA_InitializeFTDI(_In_ PDEVICE_CONTEXT_FPGA ctx)
         ctx->dev.pfnFT_Close(ctx->dev.hFTDI);
 #ifdef WIN32
         FreeLibrary(ctx->dev.hModule);
+#else
+        dlclose(ctx->dev.hModule);
 #endif /*  WIN32  */
         ctx->dev.hModule = NULL;
         ctx->dev.hFTDI = NULL;

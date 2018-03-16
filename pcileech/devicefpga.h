@@ -22,6 +22,7 @@ BOOL DeviceFPGA_Open(_Inout_ PPCILEECH_CONTEXT ctx);
 #include <stdio.h>
 #include <stdint.h>
 #include <pthread.h>
+#include <dlfcn.h>
 
 // HMODULE isn't necessary because we're not dynamically loading the library
 #define HMODULE void*
